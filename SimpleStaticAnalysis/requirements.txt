@@ -1,0 +1,4 @@
+python-magic
+libmagic - C library
+charset-normalizer
+yara-python
