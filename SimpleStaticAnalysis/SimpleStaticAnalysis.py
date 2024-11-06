@@ -144,7 +144,7 @@ def Scanning(File_Hash_List, Output_File, scan_list = "default"):
 
 
 # String Searching
-def String_Searching(File_To_Scan, Output_File):
+def String_Searching(File_To_Scan, Output_File, addtnlKeywords = []):
     """This function searches the input file for strings that match regular expressions from the regex txt file provided by the program.
 
     Args:
@@ -165,6 +165,9 @@ def String_Searching(File_To_Scan, Output_File):
         with open("stringRegEx.csv", newline="") as CSV_File:
             RegEx_Reader = csv.reader(CSV_File, delimiter=";")
             for row in RegEx_Reader:
+                Regex_Patterns.append([row[0], row[1]])
+        if len(addtnlKeywords) > 0:
+            for row in addtnlKeywords:
                 Regex_Patterns.append([row[0], row[1]])
         with open(File_To_Scan, "r") as IF:
             # Open the input file and read it into a variable
@@ -284,10 +287,10 @@ def Identify_Obfuscation(File_To_Scan, Output_File, interactive=False):
         File_To_Scan, Output_File
     )  # Call the function to identify encoding
     if interactive:
-        input("Press enter to continue")
+        input("Press enter to continue:")
     Identify_Packing(File_To_Scan, Output_File)  # Call the function to identify packing
     if interactive:
-        input("Press enter to continue")
+        input("Press enter to continue:")
     print("")
     print(
         "Finished detecting obfuscation"
@@ -321,17 +324,19 @@ def Dissasembly(File_To_Scan, Output_File):
     print("Dissasembly finished")  # Inform the user that dissasembly has finished.
 
 
+# Interactive Mode
 def Interactive_Mode():
+    # This is a function to allow for greater flexibility in this program
     print("Opening Interactive Mode")
-    print("""   Simple Static Analysis Copyright (C) 2024 Lucas Ramage
+    print("""\tSimple Static Analysis Copyright (C) 2024 Lucas Ramage
     This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
     This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.""")
+    under certain conditions; type `show c' for details.""") # Display copyright info and allow user to view warranty info.
     while True:
         print("Press enter to continue, or type 'show <option> as above to display license information: ")
-        option = input("")
+        option = input("\t") # Allow user to continue or view copyright and distrobution conditions
         if option != "":
-            if option == "show w":
+            if option == "show w": # Show warranty information
                 print("""  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
 APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
 HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
@@ -341,7 +346,7 @@ PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
 IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
 ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
             elif option == "show c":
-                print("See the License sections 4, 5, 6, and 7 for redistribution conditions")
+                print("See the License sections 4, 5, 6, and 7 for redistribution conditions, located in the LICENSE file.") # Direct user to distrobution conditions
             else:
                 print("Invalid entry")
         else:
@@ -353,19 +358,27 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
    \ `--.\ `--./ /_\ \  
     `--. \`--. \  _  |  
    /\__/ /\__/ / | | |  
-   \____/\____/\_| |_/  """)
+   \____/\____/\_| |_/  
+   """)
+    print("Welcome to the Simple Static Analysis tool! This is a tool to help analyze suspected malware by automating various tests.")
+    print("NOTE: This program does not guarantee malware detection, it merely runs tests and displays the results. Just because there are results does not mean a file is malware.")
+    print("      This program may display false positives for malware, and it may not catch unknown malware.")
     while True:
         print()
-        print("Enter the path of the file to scan:")
+        print("Enter the path of the file to scan or the path of a directory to scan all files within:")
         inFile_Path = input("\t")
+        inFile_List = []
         if not os.path.exists(inFile_Path):
             print("Entered file path does not exist.")
         else:
-            if not os.path.isfile(inFile_Path):
-                print("Entered file path does not lead to a file. Enter a path to a file.")
-            else:
+            if os.path.isfile(inFile_Path):
+                inFile_List.append(inFile_Path)
                 break
-    inFile = inFile_Path
+            else:
+                for path, dirs, files in os.walk(inFile_Path, topdown=False):
+                    for name in files:
+                        inFile_List.append(os.path.join(path, name))
+                break
     isOutFileChosen = False
     while not isOutFileChosen:
         print()
@@ -408,9 +421,19 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         # Write the timestamp of analysis and the name of the analyzed file
         OF.write("Timestamp: " + str(datetime.datetime.now()))
         OF.write("\n")
-        OF.write(f"Analyzed File: {inFile}\n")
+        OF.write("Analyzed File(s): ")
+        tmp = 0
+        for item in inFile_List:
+            fileName = os.path.split(item)
+            if tmp > 0:
+                OF.write(", ")
+            OF.write(fileName)
+        OF.write("\n")
     print()
-    print(f"The file to scan is {inFile}, and the output will be saved to {outFile}.")
+    print("The file(s) to scan is/are; ")
+    for entry in inFile_List:
+        print(entry)
+    print(f"and the output will be saved to {outFile}.")
     input("Press enter to continue:")
     print("Choose the level of fingerprinting you want:")
     print("\t[1] - Low - Calculates just the four most common hashes")
@@ -418,28 +441,30 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
     print("\t[3] - Full - Tries to calculate all available hashes")
     hashLevelChoice = input("\t")
     if hashLevelChoice == "1":
-        Hash_List = Full_Fingerprint(inFile, outFile)
+        HashType = "default"
     elif hashLevelChoice == "2":
-        Hash_List = Full_Fingerprint(inFile, outFile, "extended")
+        HashType = "extended"
     elif hashLevelChoice == "3":
-        Hash_List = Full_Fingerprint(inFile, outFile, "full")
+        HashType = "full"
     else:
         print("Invalid option, using Low")
-        Hash_List = Full_Fingerprint(inFile, outFile)
+        HashType = "default"
     print()
-    input("Press enter to continue:")
-    print("Do you want to use the included hash list csv for the scanning process?")
+    print("Do you want to use the included hash list csv for the scanning process? y/n")
     while True:
-        choice = input("y/n: ")
+        choice = input("\t")
         if choice == "y":
-            Scanning(Hash_List, outFile)
+            defaultScan = True
             break
         elif choice == "n":
             # Get path for different csv
             chosen = False
             while not chosen:
-                print("Enter the path to the desired csv file: ")
+                print("Enter the path to the desired csv file, or enter 'default' to use the included hash list: ")
                 scanFile_Path = input("\t")
+                if scanFile_Path == "default":
+                    defaultScan = True
+                    break
                 if not os.path.exists(scanFile_Path):
                     print("Path entered does not exist. This may be due to spelling errors")
                 else:
@@ -448,22 +473,37 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
                         print("Path entered does not lead to a .csv file. Enter a .csv file")
                     else:
                         scanFile = root + extension
+                        defaultScan = False
                         chosen = True
-            Scanning(Hash_List, outFile, scanFile)
             break
         else:
             print("Invalid option")
     print()
-    input("Press enter to continue:")
-    String_Searching(inFile, outFile)
-    print()
-    input("Press enter to continue:")
-    Identify_Obfuscation(inFile, outFile, True)
-    print()
-    input("Press enter to continue:")
-    Dissasembly(inFile, outFile)
-    print()
-    print("All procedures finished.")
+    print("Do you wish to add more keywords or regular expressions for this analysis? y/n")
+    option = input("\t")
+    addtnlKeywords = []
+    if option == "n":
+        print("Using default string searching")
+    elif option == "y" or option == "Y":
+        while True:
+            print("Enter one or more keyword options to search for, enter a regular expression, or enter 'q' to quit. If entering multiple keywords, seperate them with a space.")
+            user_input = input("")
+            if user_input == "q":
+                break
+            for entry in user_input.split(" "):
+                addtnlKeywords.append([entry, "User Input"])
+    else:
+        print("Invalid option, using default string searching.")
+    # Allow more YARA rules from user input
+    for inFile in inFile_List:
+        Hash_List = Full_Fingerprint(inFile, outFile, HashType)
+        if defaultScan:
+            Scanning(Hash_List, outFile)
+        else:
+            Scanning(Hash_List, outFile, scanFile)
+        String_Searching(inFile, outFile, addtnlKeywords)
+        Identify_Obfuscation(inFile, outFile, True)
+        Dissasembly(inFile, outFile)
     input("Press enter to end program")
     sys.exit()
 
