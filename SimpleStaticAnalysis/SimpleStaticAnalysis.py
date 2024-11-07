@@ -12,7 +12,7 @@ import hashlib
 import csv
 import datetime
 import re
-import magic
+import mimetypes
 import charset_normalizer
 import yara
 import os
@@ -221,13 +221,9 @@ def Identify_Encoding(File_To_Scan, Output_File):
             # If an encoding method is found, output the scheme
             OF.write("\t\tUsing Charset Normalizer from file:\n")
             OF.write(f"\t\t\tDetected {Normalizer_Results.encoding} encoding\n")
-        with open(File_To_Scan, "rb") as IF:
-            # Use a third method to scan for file-level mime encoding like base64.
-            text = IF.read()
-            detector = magic.Magic(mime_encoding=True)
-            encoding = detector.from_buffer(text)
-            OF.write("\t\tUsing Magic:\n")
-            OF.write(f"\t\t\tDetected {encoding} encoding\n")
+        filetype, encoding = mimetypes.guess_type(File_To_Scan) # Use mimetypes because magic broke
+        OF.write("\t\tUsing mimetypes:\n")
+        OF.write(f"\t\t\tDetected {encoding} encoding\n")
     print("Finished detecting encoding")  # Inform the user that this process is done
 
 
