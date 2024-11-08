@@ -36,9 +36,8 @@ If you want to add your own regular expressions or keywords, add them to the str
 There are multiple functions in this section.
 ### Identify_Encoding
 This function uses multiple different methods to identify any character or file encoding.
-First, it uses the charset_normalizer module detect() function on the text of the file to detect an encoding method with a percentage confidence
-Then, it uses the charset_normalizer module from_file().best() to detect encoding, though this should give the same result as the detect()
-Finally, it uses the magic module to detect mime encoding, like base64. This is because the other methods don't detect mime encoding.
+It uses Chardet first to try to identify character encoding, then it uses mimetypes to detect file level encoding.
+
 ### Identify_Packing
 This function uses YARA rules to detect file packers and cryptors.
 

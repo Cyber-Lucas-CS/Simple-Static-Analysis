@@ -13,10 +13,11 @@ import csv
 import datetime
 import re
 import mimetypes
-import charset_normalizer
-import yara
+import chardet
+import yara_x
 import os
 import requests
+import signal
 
 
 # Fingerprinting function
@@ -61,20 +62,33 @@ def Full_Fingerprint(File_To_Scan, Output_File, type = "default"):
         elif type == "extended":
             with open(File_To_Scan, "rb") as IF:
                 fileText = IF.read()
-                for hashType in hashlib.algorithms_guaranteed:
-                    hash = hashlib.new(hashType, fileText)
-                    OF.write(f"\t{hashType} hash: {hash}\n")
-                    Hash_List.append([hash, hashType])
+                try:
+                    for hashType in hashlib.algorithms_guaranteed:
+                        try:
+                            hash = hashlib.new(hashType, fileText).hexdigest()
+                            OF.write(f"\t{hashType} hash: {hash}\n")
+                            Hash_List.append([hash, hashType])
+                        except TypeError:
+                            hash = hashlib.new(hashType, fileText).hexdigest(64)
+                            OF.write(f"\t{hashType} hash: {hash}\n")
+                            Hash_List.append([hash, hashType])
+                except Exception as e:
+                    OF.write(f"\tCould not hash using {hashType}, encountered {e}.\n")
         elif type == "full":
             with open(File_To_Scan, "rb") as IF:
                 fileText = IF.read()
-                for hashType in hashlib.algorithms_available:
-                    try:
-                        hash = hashlib.new(hashType, fileText)
-                        OF.write(f"\t{hashType} hash: {hash}\n")
-                        Hash_List.append([hash, hashType])
-                    except:
-                        OF.write(f"\tCould not hash using {hashType}.\n")
+                try:
+                    for hashType in hashlib.algorithms_available:  
+                        try:
+                            hash = hashlib.new(hashType, fileText).hexdigest()
+                            OF.write(f"\t{hashType} hash: {hash}\n")
+                            Hash_List.append([hash, hashType])
+                        except TypeError:
+                            hash = hashlib.new(hashType, fileText).hexdigest(64)
+                            OF.write(f"\t{hashType} hash: {hash}\n")
+                            Hash_List.append([hash, hashType])
+                except Exception as e:
+                    OF.write(f"\tCould not hash using {hashType}, encountered {e}.\n")
         else:
             pass
         OF.write("\n")
@@ -101,6 +115,7 @@ def Scanning(File_Hash_List, Output_File, scan_list = "default"):
             try:
                 with open(file_Path, "wb") as scanFile:
                     scanFile.write(response.content)
+                scan_list = file_Path
             except Exception as e:
                 print("Something failed")
                 print(e)
@@ -127,18 +142,21 @@ def Scanning(File_Hash_List, Output_File, scan_list = "default"):
                     # If matches are found, write the hash matched and the name of the known malware to a list of lists
                     for entry in row:
                         for hash in File_Hash_List:
-                            if hash[0] in entry:
-                                Results_List.append([hash[0], hash[1], rowNum])
+                            try:
+                                if hash[0] in entry:
+                                    Results_List.append([hash[0], hash[1], rowNum])
+                            except:
+                                continue
                 except IndexError:  # If the row only has one entry, go to the next row
                     next(Hash_Data_Reader, None)
             if (
                 len(Results_List) == 0
             ):  # If no matches are found, write that to the output file
-                OF.write("No matches\n")
+                OF.write("\tNo matches\n")
             else:  # If matches are found, write them to the output file
-                OF.write("Matches Found:\n")
+                OF.write("\tMatches Found:\n")
                 for entry in Results_List:
-                    OF.write(f"\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n")
+                    OF.write(f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n")
 
         print("Finished scan")  # Let the user know that scanning is done.
 
@@ -177,7 +195,7 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords = []):
                     continue
                 found = False
                 pattern = entry[0].strip()
-                OF.write(f"Pattern:{entry[1]}; {pattern}\n")
+                OF.write(f"Pattern: {entry[1]}; {pattern}\n")
                 for line in text_lines:
                     matches = re.findall(pattern, line)
                     # Go through all of the patterns in the regex list and find matches within the input file text
@@ -196,7 +214,7 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords = []):
 # Identify Packing and/or Obfuscation
 # Identify Encoding
 def Identify_Encoding(File_To_Scan, Output_File):
-    """This function detects character encoding using two different methods, and detects file encoding using a third method.
+    """This function detects character encoding using two different methods.
 
     Args:
         File_To_Scan (path STR): The input file to read from
@@ -207,20 +225,13 @@ def Identify_Encoding(File_To_Scan, Output_File):
         OF.write("\tDetecting Character Encoding\n")
         with open(File_To_Scan, "rb") as f:
             text = f.read()  # Generate a string of the file to detect with this method
-            Detect_Results = charset_normalizer.detect(text)
+            Detect_Results = chardet.detect(text)
             if Detect_Results["encoding"] is not None:
                 # If an encoding method is found, output the encoding scheme and confidence
-                OF.write("\t\tUsing Charset Normalizer detect:\n")
+                OF.write("\t\tUsing Chardet detect:\n")
                 OF.write(
                     f"\t\t\tGot {Detect_Results['encoding']} encoding with {Detect_Results['confidence']} confidence\n"
                 )
-        Normalizer_Results = charset_normalizer.from_path(
-            File_To_Scan
-        ).best()  # Use a second method to scan the entire file
-        if Normalizer_Results is not None:
-            # If an encoding method is found, output the scheme
-            OF.write("\t\tUsing Charset Normalizer from file:\n")
-            OF.write(f"\t\t\tDetected {Normalizer_Results.encoding} encoding\n")
         filetype, encoding = mimetypes.guess_type(File_To_Scan) # Use mimetypes because magic broke
         OF.write("\t\tUsing mimetypes:\n")
         OF.write(f"\t\t\tDetected {encoding} encoding\n")
@@ -239,22 +250,28 @@ def Identify_Packing(File_To_Scan, Output_File):
         "Detecting packing"
     )  # Inform the user that the detection of file packing has begun
     # Compile the YARA rules
-    packer_Rules = yara.compile("packer.yar")
-    crypto_Rules = yara.compile("crypto_signatures.yar")
+    with open("crypto_signatures.txt", "r") as rulesFile:
+        crypto_Rules = yara_x.compile(rulesFile.read())
+    with open("packer.txt", "r") as rulesFile:
+        packer_Rules = yara_x.compile(rulesFile.read())
+    with open(File_To_Scan, "rb") as scanFile:
+        fileText = scanFile.read()
     with open(Output_File, "a+") as OF:
         OF.write("\tDetecting Packing and Cryptors\n")
-        cryptor_Matches = crypto_Rules.match(File_To_Scan)  # Match cryptor rules
+        cryptor_Matches = crypto_Rules.scan(fileText).matching_rules
         OF.write("\t\tFound Cryptors:\n")
         # If matches are found, output them. Otherwise, output no results found
-        if cryptor_Matches:
-            OF.write(f"\t\t\t{cryptor_Matches}\n")
+        if len(cryptor_Matches) > 0:
+            for match in cryptor_Matches.patterns.matches:
+                OF.write(f"\t\t\t{match.identifier}\n")
         else:
             OF.write("\t\t\tNo Cryptors found\n")
-        packer_Matches = packer_Rules.match(File_To_Scan)  # Match packer rules
+        packer_Matches = packer_Rules.scan(fileText).matching_rules
         OF.write("\t\tFound Packers:\n")
         # If matches are detected, output them. Otherwise, output no results
-        if packer_Matches:
-            OF.write(f"\t\t\t{packer_Matches}\n")
+        if len(packer_Matches) > 0:
+            for match in packer_Matches.patterns.matches:
+                OF.write(f"\t\t\t{match.identifier}\n")
         else:
             OF.write("\t\t\tNo Packers found\n")
     print(
@@ -324,12 +341,13 @@ def Dissasembly(File_To_Scan, Output_File):
 def Interactive_Mode():
     # This is a function to allow for greater flexibility in this program
     print("Opening Interactive Mode")
-    print("""\tSimple Static Analysis Copyright (C) 2024 Lucas Ramage
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-    This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.""") # Display copyright info and allow user to view warranty info.
+    print("""
+\tSimple Static Analysis Copyright (C) 2024 Lucas Ramage
+This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+This is free software, and you are welcome to redistribute it
+under certain conditions; type `show c' for details.""") # Display copyright info and allow user to view warranty info.
     while True:
-        print("Press enter to continue, or type 'show <option> as above to display license information: ")
+        print("Press enter to continue, 'q' to quit, or type 'show <option>' as above to display license information: ")
         option = input("\t") # Allow user to continue or view copyright and distrobution conditions
         if option != "":
             if option == "show w": # Show warranty information
@@ -343,6 +361,9 @@ IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
 ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
             elif option == "show c":
                 print("See the License sections 4, 5, 6, and 7 for redistribution conditions, located in the LICENSE file.") # Direct user to distrobution conditions
+            elif option == 'q':
+                print("quitting")
+                sys.exit()
             else:
                 print("Invalid entry")
         else:
@@ -350,11 +371,11 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
 
     print("""
     _____ _____  ___    
-   /  ___/  ___|/ _ \   
-   \ `--.\ `--./ /_\ \  
-    `--. \`--. \  _  |  
-   /\__/ /\__/ / | | |  
-   \____/\____/\_| |_/  
+   /  ___/  ___|/ _ \\   
+   \\ `--.\\ `--./ /_\\ \\  
+    `--. \\`--. \\  _  |  
+   /\\__/ /\\__/ / | | |  
+   \\____/\\____/\\_| |_/  
    """)
     print("Welcome to the Simple Static Analysis tool! This is a tool to help analyze suspected malware by automating various tests.")
     print("NOTE: This program does not guarantee malware detection, it merely runs tests and displays the results. Just because there are results does not mean a file is malware.")
@@ -391,7 +412,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
                 rejected = True
         if rejected:
             continue
-        if os.path.exists(outFile_Name):
+        if os.path.exists(outFile_Name + ".txt"):
             chosen = False
             print(f"A file already exists with this name. Continuing with this file name will completely overwrite this file.")
             while not chosen:
@@ -420,9 +441,9 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         OF.write("Analyzed File(s): ")
         tmp = 0
         for item in inFile_List:
-            fileName = os.path.split(item)
+            root, fileName = os.path.split(item)
             if tmp > 0:
-                OF.write(", ")
+                OF.write(r", ")
             OF.write(fileName)
         OF.write("\n")
     print()
@@ -490,6 +511,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
                 addtnlKeywords.append([entry, "User Input"])
     else:
         print("Invalid option, using default string searching.")
+    print()
     # Allow more YARA rules from user input
     for inFile in inFile_List:
         Hash_List = Full_Fingerprint(inFile, outFile, HashType)
@@ -523,7 +545,7 @@ def Help():
 # Main function
 def main():
     if len(sys.argv) == 1 or sys.argv[1] == "interactive":
-        pass
+        Interactive_Mode()
     elif sys.argv[1] == "help":
         Help()
     elif len(sys.argv) == 2:
@@ -560,4 +582,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Exicing through Keyboard Interrupt")
+        sys.exit()
