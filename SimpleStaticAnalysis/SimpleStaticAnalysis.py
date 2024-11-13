@@ -7,6 +7,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+# Imports
 import sys
 import hashlib
 import csv
@@ -17,11 +18,10 @@ import chardet
 import yara_x
 import os
 import requests
-import signal
 
 
 # Fingerprinting function
-def Full_Fingerprint(File_To_Scan, Output_File, type = "default"):
+def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
     """This function generates hashes of the input file using the four most common hash types used in system foresnics.
 
     Args:
@@ -78,7 +78,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type = "default"):
             with open(File_To_Scan, "rb") as IF:
                 fileText = IF.read()
                 try:
-                    for hashType in hashlib.algorithms_available:  
+                    for hashType in hashlib.algorithms_available:
                         try:
                             hash = hashlib.new(hashType, fileText).hexdigest()
                             OF.write(f"\t{hashType} hash: {hash}\n")
@@ -99,7 +99,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type = "default"):
 
 
 # Scanning function
-def Scanning(File_Hash_List, Output_File, scan_list = "default"):
+def Scanning(File_Hash_List, Output_File, scan_list="default"):
     """This function scans the hashes from the provided hash list, taken from the fingerprinting function, and compares them to the csv file included with known malware hashes.
 
     Args:
@@ -156,13 +156,15 @@ def Scanning(File_Hash_List, Output_File, scan_list = "default"):
             else:  # If matches are found, write them to the output file
                 OF.write("\tMatches Found:\n")
                 for entry in Results_List:
-                    OF.write(f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n")
+                    OF.write(
+                        f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n"
+                    )
 
         print("Finished scan")  # Let the user know that scanning is done.
 
 
 # String Searching
-def String_Searching(File_To_Scan, Output_File, addtnlKeywords = []):
+def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
     """This function searches the input file for strings that match regular expressions from the regex txt file provided by the program.
 
     Args:
@@ -232,7 +234,9 @@ def Identify_Encoding(File_To_Scan, Output_File):
                 OF.write(
                     f"\t\t\tGot {Detect_Results['encoding']} encoding with {Detect_Results['confidence']} confidence\n"
                 )
-        filetype, encoding = mimetypes.guess_type(File_To_Scan) # Use mimetypes because magic broke
+        filetype, encoding = mimetypes.guess_type(
+            File_To_Scan
+        )  # Use mimetypes because magic broke
         OF.write("\t\tUsing mimetypes:\n")
         OF.write(f"\t\t\tDetected {encoding} encoding\n")
     print("Finished detecting encoding")  # Inform the user that this process is done
@@ -279,14 +283,44 @@ def Identify_Packing(File_To_Scan, Output_File):
     )  # Inform the user that this process has finished.
 
 
+# A function to match with user input YARA rules.
+def Misc_YARA_Rules(File_To_Scan, Output_File, Yara_File):
+    """This function matches user input YARA rules
+
+    Args:
+        File_To_Scan (path STR): The input file to read from
+        Output_File (path STR): The destination output file
+        Yara_File (path STR): The input YARA file to match
+    """
+    # Compile the YARA rules
+    with open(Yara_File, "r") as ruleFile:
+        YARA_Rules = yara_x.compile(ruleFile.read())
+    # Read the input text as binary
+    with open(File_To_Scan, "rb") as IF:
+        fileText = IF.read()
+    with open(Output_File, "a+") as OF:
+        # Create a section in the output file for this particular matching operation
+        root, fileName = os.path.split(Yara_File)
+        OF.write(f"\tMatching YARA rules from {fileName}\n")
+        # Scan the input file to match the YARA rules
+        YARA_Matches = YARA_Rules.scan(fileText).matching_rules
+        OF.write("\t\tFound Matches:\n")
+        if len(YARA_Matches) > 0:
+            # Output any matches
+            for match in YARA_Matches.patterns.matches:
+                OF.write(f"\t\t\t{match.identifier}\n")
+        else:
+            OF.write("\t\t\tNo matches found\n")
+
+
 # Identify Obfuscation
-def Identify_Obfuscation(File_To_Scan, Output_File, interactive=False):
+def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None):
     """This function calls Identify_Encoding and Identify_Packing.
 
     Args:
         File_To_Scan (path STR): The path to the input file
         Output_File (path STR): The path to the output file
-        interactive (bool): A boolean determining whether to run in interactive mode
+        YARA_List (list of path STR): A list containing additional YARA rule files. None by default
     """
     print("")
     print(
@@ -299,11 +333,10 @@ def Identify_Obfuscation(File_To_Scan, Output_File, interactive=False):
     Identify_Encoding(
         File_To_Scan, Output_File
     )  # Call the function to identify encoding
-    if interactive:
-        input("Press enter to continue:")
     Identify_Packing(File_To_Scan, Output_File)  # Call the function to identify packing
-    if interactive:
-        input("Press enter to continue:")
+    if YARA_List != None:
+        for path in YARA_List:
+            Misc_YARA_Rules(File_To_Scan, Output_File, path)
     print("")
     print(
         "Finished detecting obfuscation"
@@ -341,56 +374,79 @@ def Dissasembly(File_To_Scan, Output_File):
 def Interactive_Mode():
     # This is a function to allow for greater flexibility in this program
     print("Opening Interactive Mode")
-    print("""
+    print(
+        """
 \tSimple Static Analysis Copyright (C) 2024 Lucas Ramage
 This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
 This is free software, and you are welcome to redistribute it
-under certain conditions; type `show c' for details.""") # Display copyright info and allow user to view warranty info.
+under certain conditions; type `show c' for details."""
+    )  # Display copyright info and allow user to view warranty info.
     while True:
-        print("Press enter to continue, 'q' to quit, or type 'show <option>' as above to display license information: ")
-        option = input("\t") # Allow user to continue or view copyright and distrobution conditions
+        print(
+            "Press enter to continue, 'q' to quit, or type 'show <option>' as above to display license information: "
+        )
+        option = input(
+            "\t"
+        )  # Allow user to continue or view copyright and distrobution conditions
         if option != "":
-            if option == "show w": # Show warranty information
-                print("""  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+            if option == "show w":  # Show warranty information
+                print(
+                    """  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
 APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
 HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
 OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
 THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
 PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
 IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
-ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
+ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
+                )
             elif option == "show c":
-                print("See the License sections 4, 5, 6, and 7 for redistribution conditions, located in the LICENSE file.") # Direct user to distrobution conditions
-            elif option == 'q':
+                print(
+                    "See the License sections 4, 5, 6, and 7 for redistribution conditions, located in the LICENSE file."
+                )  # Direct user to distrobution conditions
+            elif option == "q":  # Allow user to quit
                 print("quitting")
                 sys.exit()
             else:
                 print("Invalid entry")
         else:
             break
-
-    print("""
+    # Display interactive header
+    print(
+        """
     _____ _____  ___    
    /  ___/  ___|/ _ \\   
    \\ `--.\\ `--./ /_\\ \\  
     `--. \\`--. \\  _  |  
    /\\__/ /\\__/ / | | |  
    \\____/\\____/\\_| |_/  
-   """)
-    print("Welcome to the Simple Static Analysis tool! This is a tool to help analyze suspected malware by automating various tests.")
-    print("NOTE: This program does not guarantee malware detection, it merely runs tests and displays the results. Just because there are results does not mean a file is malware.")
-    print("      This program may display false positives for malware, and it may not catch unknown malware.")
+   """
+    )
+    print(
+        "Welcome to the Simple Static Analysis tool! This is a tool to help analyze suspected malware by automating various tests."
+    )
+    print(
+        "NOTE: This program does not guarantee malware detection, it merely runs tests and displays the results. Just because there are results does not mean a file is malware."
+    )
+    print(
+        "\tThis program may display false positives for malware, and it may not catch unknown malware."
+    )
     while True:
         print()
-        print("Enter the path of the file to scan or the path of a directory to scan all files within:")
+        print(
+            "Enter the path of the file to scan or the path of a directory to scan all files within:"
+        )
+        # Accept user input for input file, repeats until a valid file or directory is entered
         inFile_Path = input("\t")
         inFile_List = []
         if not os.path.exists(inFile_Path):
             print("Entered file path does not exist.")
         else:
+            # If the user entered a file, just use the one
             if os.path.isfile(inFile_Path):
                 inFile_List.append(inFile_Path)
                 break
+            # If the user entered a directory, walk through all of the files in that directory and add them to the list.
             else:
                 for path, dirs, files in os.walk(inFile_Path, topdown=False):
                     for name in files:
@@ -398,23 +454,64 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
                 break
     isOutFileChosen = False
     while not isOutFileChosen:
+        # Allow user input for the name of the output file
         print()
-        print("Enter a name for the output file; NOT A PATH; DO NOT INCLUDE AN EXTENSION:")
-        excluded_chars = ["\\","/",":","*","?","\"","<",">","|","~","#","%","&","{","}","(",")","[","]","$","!","'","@","+","`","="," ",",","^",";"]
+        print(
+            "Enter a name for the output file; NOT A PATH; DO NOT INCLUDE AN EXTENSION:"
+        )
+        # This is a list of all characters that are excluded from file names or are discouraged in file names.
+        excluded_chars = [
+            "\\",
+            "/",
+            ":",
+            "*",
+            "?",
+            '"',
+            "<",
+            ">",
+            "|",
+            "~",
+            "#",
+            "%",
+            "&",
+            "{",
+            "}",
+            "(",
+            ")",
+            "[",
+            "]",
+            "$",
+            "!",
+            "'",
+            "@",
+            "+",
+            "`",
+            "=",
+            " ",
+            ",",
+            "^",
+            ";",
+        ]
         outFile_Name = input("\t")
         rejected = False
+        # Go through each character in the list
         for char in excluded_chars:
+            # If the character is in the entered file name, reject it
             if char in outFile_Name:
-                if char == " ":
+                if char == " ":  # I had to add this for readability.
                     print("file name cannot contain a space")
                 else:
                     print(f"file name cannot contain character {char}")
                 rejected = True
         if rejected:
+            # If the file name got rejected, go back to where it accepted input.
             continue
+        # If the entered output file name already exists, give the user a warning.
         if os.path.exists(outFile_Name + ".txt"):
             chosen = False
-            print(f"A file already exists with this name. Continuing with this file name will completely overwrite this file.")
+            print(
+                f"A file already exists with this name. Continuing with this file name will completely overwrite this file."
+            )
             while not chosen:
                 overwrite = input("Continue? (y/n): ")
                 if overwrite == "y":
@@ -430,6 +527,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         else:
             isOutFileChosen = True
     outFile = outFile_Name + ".txt"
+    # Write the output header to the chosen output file
     with open(outFile, "w+") as OF:
         with open("OutputHeader.txt", "r") as header:
             # Copy the output header from the OutputHeader file
@@ -438,6 +536,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         # Write the timestamp of analysis and the name of the analyzed file
         OF.write("Timestamp: " + str(datetime.datetime.now()))
         OF.write("\n")
+        # Write all of the input files
         OF.write("Analyzed File(s): ")
         tmp = 0
         for item in inFile_List:
@@ -447,11 +546,13 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
             OF.write(fileName)
         OF.write("\n")
     print()
+    # Print the current file choices to the command line
     print("The file(s) to scan is/are; ")
     for entry in inFile_List:
         print(entry)
     print(f"and the output will be saved to {outFile}.")
     input("Press enter to continue:")
+    # Allow the user to chose the level of intensity for the fingerprinting
     print("Choose the level of fingerprinting you want:")
     print("\t[1] - Low - Calculates just the four most common hashes")
     print("\t[2] - Extended - Calculates using all guaranteed hashes")
@@ -467,9 +568,10 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         print("Invalid option, using Low")
         HashType = "default"
     print()
+    # Allow the user to use their own malware signature CSV file
     print("Do you want to use the included hash list csv for the scanning process? y/n")
     while True:
-        choice = input("\t")
+        choice = input("\t").lower()
         if choice == "y":
             defaultScan = True
             break
@@ -477,17 +579,25 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
             # Get path for different csv
             chosen = False
             while not chosen:
-                print("Enter the path to the desired csv file, or enter 'default' to use the included hash list: ")
+                print(
+                    "Enter the path to the desired csv file, or enter 'default' to use the included hash list: "
+                )
                 scanFile_Path = input("\t")
-                if scanFile_Path == "default":
+                if (
+                    scanFile_Path == "default"
+                ):  # This option is for if the user changes their mind
                     defaultScan = True
                     break
                 if not os.path.exists(scanFile_Path):
-                    print("Path entered does not exist. This may be due to spelling errors")
+                    print(
+                        "Path entered does not exist. This may be due to spelling errors"
+                    )
                 else:
                     root, extension = os.path.splitext(scanFile_Path)
                     if extension != ".csv":
-                        print("Path entered does not lead to a .csv file. Enter a .csv file")
+                        print(
+                            "Path entered does not lead to a .csv file. Enter a .csv file"
+                        )
                     else:
                         scanFile = root + extension
                         defaultScan = False
@@ -496,14 +606,19 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         else:
             print("Invalid option")
     print()
-    print("Do you wish to add more keywords or regular expressions for this analysis? y/n")
-    option = input("\t")
+    # Allow user to add more things to look for when searching the file for strings
+    print(
+        "Do you wish to add more keywords or regular expressions for this analysis? y/n"
+    )
+    option = input("\t").lower()
     addtnlKeywords = []
     if option == "n":
         print("Using default string searching")
-    elif option == "y" or option == "Y":
+    elif option == "y":
         while True:
-            print("Enter one or more keyword options to search for, enter a regular expression, or enter 'q' to quit. If entering multiple keywords, seperate them with a space.")
+            print(
+                "Enter one or more keyword options to search for, enter a regular expression, or enter 'q' to quit. If entering multiple keywords, seperate them with a space."
+            )
             user_input = input("")
             if user_input == "q":
                 break
@@ -513,6 +628,39 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         print("Invalid option, using default string searching.")
     print()
     # Allow more YARA rules from user input
+    print("Do you wish to match the file against additional YARA rule files? y/n")
+    option = input("\t").lower()
+    if option == "n":
+        print("Using included YARA rules only")
+    elif option == "y":
+        done = False
+        yara_list = []
+        while not done:  # This loop allows the user to enter multiple YARA files
+            print(
+                "Enter the path to the YARA rule file, or enter 'q' to stop. Please ensure the file is a .txt file, not .yar or .yara"
+            )
+            new_yara_file = input("\t")
+            if new_yara_file == "q":
+                print("Finished accepting files")
+                done = True
+                break
+            else:
+                if os.path.exists(new_yara_file):
+                    if os.path.isfile(new_yara_file):
+                        root, extension = os.path.splitext(new_yara_file)
+                        if extension == ".txt":
+                            yara_list.append(new_yara_file)
+                        else:
+                            print(
+                                "Entered file is not a .txt file. Please ensure the file is a .txt file"
+                            )
+                    else:
+                        print("Entered path is not a file")
+                else:
+                    print("Entered path does not exist")
+    else:
+        print("Invalid option, using included YARA rules only")
+    # Go through and do all of the operations for each of the input files in the list.
     for inFile in inFile_List:
         Hash_List = Full_Fingerprint(inFile, outFile, HashType)
         if defaultScan:
@@ -520,7 +668,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
         else:
             Scanning(Hash_List, outFile, scanFile)
         String_Searching(inFile, outFile, addtnlKeywords)
-        Identify_Obfuscation(inFile, outFile, True)
+        Identify_Obfuscation(inFile, outFile)
         Dissasembly(inFile, outFile)
     input("Press enter to end program")
     sys.exit()
@@ -528,7 +676,9 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.""")
 
 # Help function to display syntax if help is input
 def Help():
-    print("Syntax for one command: SimpleStaticAnalysis.py <file_to_scan> <name_for_output_file>")
+    print(
+        "Syntax for one command: SimpleStaticAnalysis.py <file_to_scan> <name_for_output_file>"
+    )
     print(
         "NOTE: This program will generate a header in the file, please ensure the file does not exist or is empty."
     )
@@ -538,31 +688,41 @@ def Help():
     print(
         "<name_for_output_file> is just a simple name for the output file. Do not include an extension, as this program automatically adds the .txt extension."
     )
-    print("Syntax for interactive mode: SimpleStaticAnalysis.py OR SimpleStaticAnalysis.py interactive")
+    print(
+        "Syntax for interactive mode: SimpleStaticAnalysis.py OR SimpleStaticAnalysis.py interactive"
+    )
     sys.exit()
 
 
 # Main function
 def main():
+    # Detect the amount of arguments and the type of arguments,
     if len(sys.argv) == 1 or sys.argv[1] == "interactive":
+        # Run interacctive mode if no arguments are entered or if the 'interactive' argument is entered
         Interactive_Mode()
     elif sys.argv[1] == "help":
+        # Show the help function if the 'help' argument is entered
         Help()
+    # Show the help function if the program does not recognize the argument entered or if there are too many arguments
     elif len(sys.argv) == 2:
         print("Unrecognized argument")
         Help()
     elif len(sys.argv) > 3:
         print("Too many arguments entered")
         Help()
-    else:
+    else:  # Run in single command mode
         # Save the files for easy use
         inFile = sys.argv[1]
+        # Checks if selected file exists, exits if it does not
         try:
             with open(inFile, "r") as IF:
-                print(f"{inFile} exists")
+                print(f"{IF} exists")
         except FileNotFoundError:
-            print(f"{inFile} does not exist. This may be due to spelling errors or from an incorrect path. Please double check the path.")
+            print(
+                f"{inFile} does not exist. This may be due to spelling errors or from an incorrect path. Please double check the path."
+            )
             sys.exit()
+        # Creates the output file
         outFile = sys.argv[2] + ".txt"
         with open(outFile, "w+") as OF:
             with open("OutputHeader.txt", "r") as header:
@@ -582,6 +742,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # This section is so that I can handle Control+C
     try:
         main()
     except KeyboardInterrupt:
