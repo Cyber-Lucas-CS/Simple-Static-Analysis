@@ -37,10 +37,16 @@ There are multiple functions in this section.
 ### Identify_Encoding
 This function uses multiple different methods to identify any character or file encoding.
 It uses Chardet first to try to identify character encoding, then it uses mimetypes to detect file level encoding.
-
 ### Identify_Packing
 This function uses YARA rules to detect file packers and cryptors.
+### Misc_YARA_Rules
+This functions uses user input YARA rules, entered during interactive mode, and matches the input file or files against the rules.
+### Identify_Obfuscation
+This function calls the other functions within this section.
 
 ## Disassembly:
 The disassembly function copies the entire input file to a txt file, character by character.
 This is to prevent any accidental execution of commands, though everything using the input file is read-only.
+
+## Interactive_Mode:
+This function runs interactive mode. Interactive mode allows the user to have more control over how this application functions. It is also a more user-friendly version.
