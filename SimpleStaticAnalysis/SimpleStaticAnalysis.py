@@ -8,16 +8,16 @@ You should have received a copy of the GNU General Public License along with thi
 """
 
 # Imports
-import sys
-import hashlib
-import csv
-import datetime
-import re
-import mimetypes
-import chardet
-import yara_x
-import os
-import requests
+import chardet  # Detecting character encoding
+import csv  # Gracefully reading CSV files
+import datetime  # Allow for timestamps
+import hashlib  # Allow for hashing text and files
+import mimetypes  # Detect file encoding and mime types
+import os  # Allow multi-system compatability with file paths
+import re  # Allow the use of regular expressions
+import requests  # Allow getting files from web pages
+import sys  # Allow command-line arguments and graceful exiting
+import yara_x  # Allow the use of YARA rules
 
 
 # Fingerprinting function
@@ -107,19 +107,23 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
         Output_File (path STR): The destination output file
         scan_list (path STR): The list to scan against. If left as default, gets the most recent 48 hour data dump from MalwareBazaar
     """
+    # Get the recent CSV from MalwareBazaar using the requests library
     if scan_list == "default":
         url = "https://bazaar.abuse.ch/export/csv/recent/"
         response = requests.get(url)
         file_Path = "recent.csv"
         if response.status_code == 200:
             try:
+                # Store the file from MalwareBazaar locally, overwriting the previous CSV
                 with open(file_Path, "wb") as scanFile:
                     scanFile.write(response.content)
                 scan_list = file_Path
             except Exception as e:
+                # Allow for graceful handling of unexpected errors.
                 print("Something failed")
                 print(e)
         else:
+            # If the program cannot get the file from MalwareBazaar, it will use whatever one it already has.
             print("Failed getting recent malware csv from MalwareBazaar.")
     with open(Output_File, "a+") as OF:  # Open the output file
         OF.write("Scanning Results\n")  # Create scan result section
@@ -132,15 +136,12 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
         ) as csvfile:  # Open the known malware csv for reading
             Hash_Data_Reader = csv.reader(csvfile, delimiter=",")
             rowNum = 0
-            for (
-                row
-            ) in (
-                Hash_Data_Reader
-            ):  # Read through each row. If the row has multiple entries, it checks the provided hash list against the proper entries.
+            for row in Hash_Data_Reader:  # Read through each row in the hash list CSV
                 rowNum += 1
                 try:
-                    # If matches are found, write the hash matched and the name of the known malware to a list of lists
+                    # Read through column of the rows, moving on if there is an index error
                     for entry in row:
+                        # Go through each hash provided in the file hash list from the input file. If there is a match, write it to the output file
                         for hash in File_Hash_List:
                             try:
                                 if hash[0] in entry:

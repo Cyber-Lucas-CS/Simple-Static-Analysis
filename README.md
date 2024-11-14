@@ -16,7 +16,7 @@ python SimpleStaticAnalysis.py <path_to_input_file> <name_for_output_file>
 This runs the program in single command mode, with default settings on everything.
 
 python SimpleStaticAnalysis.py OR python SimpleStaticAnalysis.py interactive
-This runs the program in interactive mode, where you use more complex options.
+This runs the program in interactive mode, where you can use more complex options.
 
 The output file and dissasembled file will be in the folder with the application.
 
@@ -30,7 +30,7 @@ This csv is downloaded from MalwareBazaar. If you wish to use a different set of
 ## String_Searching:
 This function searches the input file for strings matching certain regular expressions provided in the file 'stringRegEx.csv'
 It writes any matches found and which pattern they matched to the output file.
-If you want to add your own regular expressions or keywords, add them to the stringRegEx.csv file. 
+If you want to add your own regular expressions or keywords, add them to the stringRegEx.csv file or use interactive mode to enter them for a single run of the program.
 
 ## Packaging and Obfuscation detection:
 There are multiple functions in this section.
