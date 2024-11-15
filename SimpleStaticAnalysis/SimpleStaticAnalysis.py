@@ -359,7 +359,7 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder):
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
-        Output_Folder (path STR): The folder all of the output files go inS
+        Output_Folder (path STR): The folder all of the output files go in
     """
     print("")
     print("Beginning Dissasembly")  # Inform the user that assembly has begun
