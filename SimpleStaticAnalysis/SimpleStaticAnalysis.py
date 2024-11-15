@@ -160,7 +160,6 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
                     OF.write(
                         f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n"
                     )
-
         print("Finished scan")  # Let the user know that scanning is done.
 
 
@@ -308,8 +307,13 @@ def Misc_YARA_Rules(File_To_Scan, Output_File, Yara_File):
         OF.write("\t\tFound Matches:\n")
         if len(YARA_Matches) > 0:
             # Output any matches
-            for match in YARA_Matches.patterns.matches:
-                OF.write(f"\t\t\t{match.identifier}\n")
+            for rule in YARA_Matches:
+                for pattern in rule.patterns:
+                    for match in pattern.matches:
+                        OF.write(f"\t\t\t{pattern.identifier}\n")
+                        OF.write(
+                            f"\t\t\t{match.offset} characters in, {match.length} characters long.\n"
+                        )
         else:
             OF.write("\t\t\tNo matches found\n")
 
@@ -345,19 +349,23 @@ def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None):
 
 
 # Dissasembly
-def Dissasembly(File_To_Scan, Output_File):
+def Dissasembly(File_To_Scan, Output_File, Output_Folder):
     """This function disassembles the input file, outputting all characters to a seperate file formatted as a .txt file.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
+        Output_Folder (path STR): The folder all of the output files go inS
     """
     print("")
     print("Beginning Dissasembly")  # Inform the user that assembly has begun
     print("")
     head, fileName = os.path.split(File_To_Scan)
     trueFileName, ext = os.path.splitext(fileName)
-    Dissasembly_File = f"{trueFileName}_{str(datetime.datetime.now())}.txt"  # Make a unique dissasembly file using the current date
+    Dissasembly_File_Name = (
+        f"{trueFileName}_Dissasembled.txt"  # Make a unique dissasembly file
+    )
+    Dissasembly_File = os.path.join(Output_Folder, Dissasembly_File_Name)
     with open(Output_File, "a+") as OF:
         OF.write("\nDissasembly\n")  # Create a dissasembly section in the output file
         with open(Dissasembly_File, "a+") as DestFile:
@@ -409,7 +417,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
                 print("quitting")
                 sys.exit()
             else:
-                print("Invalid entry")
+                print("Invalid entry, try again.")
         else:
             break
     # Display interactive header
@@ -452,6 +460,11 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
                 for path, dirs, files in os.walk(inFile_Path, topdown=False):
                     for name in files:
                         inFile_List.append(os.path.join(path, name))
+                if len(inFile_List) < 1:
+                    print(
+                        "Entered directory doesn't have any actual files. Please enter a path to a file or a path to a directory containing files."
+                    )
+                    continue
                 break
     isOutFileChosen = False
     while not isOutFileChosen:
@@ -504,30 +517,17 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
                 else:
                     print(f"file name cannot contain character {char}")
                 rejected = True
+                break
         if rejected:
             # If the file name got rejected, go back to where it accepted input.
             continue
-        # If the entered output file name already exists, give the user a warning.
-        if os.path.exists(outFile_Name + ".txt"):
-            chosen = False
-            print(
-                f"A file already exists with this name. Continuing with this file name will completely overwrite this file."
-            )
-            while not chosen:
-                overwrite = input("Continue? (y/n): ")
-                if overwrite == "y":
-                    print("Continuing with chosen file name")
-                    isOutFileChosen = True
-                    chosen = True
-                    break
-                elif overwrite == "n":
-                    print("Choose a different name for the output file")
-                    chosen = True
-                else:
-                    print("Please enter 'y' or 'n'")
         else:
             isOutFileChosen = True
-    outFile = outFile_Name + ".txt"
+    # Make a unique output folder to organize the output files.
+    outFolder_Name = f"{outFile_Name}_{str(datetime.datetime.now())}_Folder"
+    os.mkdir(outFolder_Name)
+    outFile_Name = outFile_Name + ".txt"
+    outFile = os.path.join(outFolder_Name, outFile_Name)
     # Write the output header to the chosen output file
     with open(outFile, "w+") as OF:
         with open("OutputHeader.txt", "r") as header:
@@ -545,6 +545,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
             if tmp > 0:
                 OF.write(r", ")
             OF.write(fileName)
+            tmp += 1
         OF.write("\n")
     print()
     # Print the current file choices to the command line
@@ -570,13 +571,14 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
         HashType = "default"
     print()
     # Allow the user to use their own malware signature CSV file
-    print("Do you want to use the included hash list csv for the scanning process? y/n")
+    print("Do you want to use your own hash list csv for the scanning process? y/n")
     while True:
         choice = input("\t").lower()
-        if choice == "y":
+        if choice == "n":
             defaultScan = True
+            print("Using default hash list")
             break
-        elif choice == "n":
+        elif choice == "y":
             # Get path for different csv
             chosen = False
             while not chosen:
@@ -620,7 +622,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
             print(
                 "Enter one or more keyword options to search for, enter a regular expression, or enter 'q' to quit. If entering multiple keywords, seperate them with a space."
             )
-            user_input = input("")
+            user_input = input("\t")
             if user_input == "q":
                 break
             for entry in user_input.split(" "):
@@ -650,6 +652,12 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
                     if os.path.isfile(new_yara_file):
                         root, extension = os.path.splitext(new_yara_file)
                         if extension == ".txt":
+                            with open(new_yara_file, "r") as ruleFile:
+                                try:
+                                    rules = yara_x.compile(ruleFile.read())
+                                except yara_x.CompileError:
+                                    print(f"File entered does not contain YARA rules.")
+                                    continue
                             yara_list.append(new_yara_file)
                         else:
                             print(
@@ -663,6 +671,9 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
         print("Invalid option, using included YARA rules only")
     # Go through and do all of the operations for each of the input files in the list.
     for inFile in inFile_List:
+        with open(outFile, "a+") as OF:
+            root, fileName = os.path.split(inFile)
+            OF.write(f"\n{fileName}\n")
         Hash_List = Full_Fingerprint(inFile, outFile, HashType)
         if defaultScan:
             Scanning(Hash_List, outFile)
@@ -670,7 +681,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
             Scanning(Hash_List, outFile, scanFile)
         String_Searching(inFile, outFile, addtnlKeywords)
         Identify_Obfuscation(inFile, outFile)
-        Dissasembly(inFile, outFile)
+        Dissasembly(inFile, outFile, outFolder_Name)
     input("Press enter to end program")
     sys.exit()
 
@@ -723,8 +734,11 @@ def main():
                 f"{inFile} does not exist. This may be due to spelling errors or from an incorrect path. Please double check the path."
             )
             sys.exit()
-        # Creates the output file
-        outFile = sys.argv[2] + ".txt"
+        # Creates the output file and folder
+        outFolder_Name = f"{sys.argv[2]}_{str(datetime.datetime.now())}_Folder"
+        os.mkdir(outFolder_Name)
+        outFile_Name = sys.argv[2] + ".txt"
+        outFile = os.path.join(outFolder_Name, outFile_Name)
         with open(outFile, "w+") as OF:
             with open("OutputHeader.txt", "r") as header:
                 # Copy the output header from the OutputHeader file
@@ -739,7 +753,7 @@ def main():
         Scanning(Hash_List, outFile)
         String_Searching(inFile, outFile)
         Identify_Obfuscation(inFile, outFile)
-        Dissasembly(inFile, outFile)
+        Dissasembly(inFile, outFile, outFolder_Name)
 
 
 if __name__ == "__main__":
