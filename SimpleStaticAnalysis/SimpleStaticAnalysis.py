@@ -266,16 +266,20 @@ def Identify_Packing(File_To_Scan, Output_File):
         OF.write("\t\tFound Cryptors:\n")
         # If matches are found, output them. Otherwise, output no results found
         if len(cryptor_Matches) > 0:
-            for match in cryptor_Matches.patterns.matches:
-                OF.write(f"\t\t\t{match.identifier}\n")
+            for rule in cryptor_Matches:
+                for pattern in rule.patterns:
+                    for match in pattern.matches:
+                        OF.write(f"\t\t\t{pattern.identifier}\n")
         else:
             OF.write("\t\t\tNo Cryptors found\n")
         packer_Matches = packer_Rules.scan(fileText).matching_rules
         OF.write("\t\tFound Packers:\n")
         # If matches are detected, output them. Otherwise, output no results
         if len(packer_Matches) > 0:
-            for match in packer_Matches.patterns.matches:
-                OF.write(f"\t\t\t{match.identifier}\n")
+            for rule in packer_Matches:
+                for pattern in rule.patterns:
+                    for match in pattern.matches:
+                        OF.write(f"\t\t\t{pattern.identifier}\n")
         else:
             OF.write("\t\t\tNo Packers found\n")
     print(
