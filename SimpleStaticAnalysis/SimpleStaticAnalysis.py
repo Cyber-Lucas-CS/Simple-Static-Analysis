@@ -116,6 +116,9 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
             try:
                 # Store the file from MalwareBazaar locally, overwriting the previous CSV
                 with open(file_Path, "wb") as scanFile:
+                    scanFile.write(
+                        b'"first_seen_utc","sha256_hash","md5_hash","sha1_hash","reporter","file_name","file_type_guess","mime_type","signature","clamav","vtpercent","imphash","ssdeep","tlsh"\n'
+                    )
                     scanFile.write(response.content)
                 scan_list = file_Path
             except Exception as e:
@@ -189,7 +192,7 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
         if len(addtnlKeywords) > 0:
             for row in addtnlKeywords:
                 Regex_Patterns.append([row[0], row[1]])
-        with open(File_To_Scan, "r") as IF:
+        with open(File_To_Scan, "rb") as IF:
             # Open the input file and read it into a variable
             text_lines = IF.readlines()
             for entry in Regex_Patterns:
@@ -199,7 +202,7 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
                 pattern = entry[0].strip()
                 OF.write(f"Pattern: {entry[1]}; {pattern}\n")
                 for line in text_lines:
-                    matches = re.findall(pattern, line)
+                    matches = re.findall(pattern, str(line))
                     # Go through all of the patterns in the regex list and find matches within the input file text
                     if matches:
                         found = True
@@ -227,18 +230,20 @@ def Identify_Encoding(File_To_Scan, Output_File):
         OF.write("\tDetecting Character Encoding\n")
         with open(File_To_Scan, "rb") as f:
             text = f.read()  # Generate a string of the file to detect with this method
-            Detect_Results = chardet.detect(text)
-            if Detect_Results["encoding"] is not None:
+            Detect_Results = chardet.detect_all(text)
+            OF.write("\t\tUsing Chardet detect:\n")
+            if len(Detect_Results) > 0:
                 # If an encoding method is found, output the encoding scheme and confidence
-                OF.write("\t\tUsing Chardet detect:\n")
-                OF.write(
-                    f"\t\t\tGot {Detect_Results['encoding']} encoding with {Detect_Results['confidence']} confidence\n"
-                )
+                for entry in Detect_Results:
+                    OF.write(
+                        f"\t\t\tGot {entry['encoding']} encoding with {entry['confidence']} confidence\n"
+                    )
         filetype, encoding = mimetypes.guess_type(
             File_To_Scan
         )  # Use mimetypes because magic broke
         OF.write("\t\tUsing mimetypes:\n")
         OF.write(f"\t\t\tDetected {encoding} encoding\n")
+        OF.write(f"\t\t\tDetected filetype {filetype}\n")
     print("Finished detecting encoding")  # Inform the user that this process is done
 
 
@@ -373,12 +378,12 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder):
     with open(Output_File, "a+") as OF:
         OF.write("\nDissasembly\n")  # Create a dissasembly section in the output file
         with open(Dissasembly_File, "a+") as DestFile:
-            with open(File_To_Scan, "r") as InFile:
+            with open(File_To_Scan, "rb") as InFile:
                 for char in InFile.read():
                     # Write each character from the input file to the dissasembly file
-                    DestFile.write(char)
+                    DestFile.write(str(char))
         OF.write(
-            f"Dissasembly written to {Dissasembly_File}.\nSee that file for an exact reproduction of the contents of {File_To_Scan}.\n"
+            f"\tDissasembly written to {Dissasembly_File}.\n\tSee that file for an exact reproduction of the contents of {File_To_Scan}.\n"
         )
     print("Dissasembly finished")  # Inform the user that dissasembly has finished.
 
@@ -528,7 +533,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
         else:
             isOutFileChosen = True
     # Make a unique output folder to organize the output files.
-    outFolder_Name = f"{outFile_Name}_{str(datetime.datetime.now())}_Folder"
+    outFolder_Name = f"{outFile_Name}_{str(datetime.date.today())}_Folder"
     os.mkdir(outFolder_Name)
     outFile_Name = outFile_Name + ".txt"
     outFile = os.path.join(outFolder_Name, outFile_Name)
