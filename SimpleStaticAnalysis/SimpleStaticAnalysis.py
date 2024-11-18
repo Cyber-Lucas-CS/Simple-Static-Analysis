@@ -689,7 +689,11 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
         else:
             Scanning(Hash_List, outFile, scanFile)
         String_Searching(inFile, outFile, addtnlKeywords)
-        Identify_Obfuscation(inFile, outFile)
+        if yara_list is not None:
+            for rule_file in yara_list:
+                Identify_Obfuscation(inFile, outFile, rule_file)
+        else:
+            Identify_Obfuscation(inFile, outFile)
         Dissasembly(inFile, outFile, outFolder_Name)
     input("Press enter to end program")
     sys.exit()
