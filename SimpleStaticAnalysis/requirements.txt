@@ -1,3 +1,0 @@
-yara_x
-chardet
-requests
