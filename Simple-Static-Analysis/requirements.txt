@@ -1,0 +1,4 @@
+chardet
+requests
+tkinter
+yara_x

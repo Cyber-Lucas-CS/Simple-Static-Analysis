@@ -17,6 +17,7 @@ import os  # Allow multi-system compatability with file paths
 import re  # Allow the use of regular expressions
 import requests  # Allow getting files from web pages
 import sys  # Allow command-line arguments and graceful exiting
+import tempfile  # Allow for temporary files that do not get saved
 import yara_x  # Allow the use of YARA rules
 
 
@@ -27,7 +28,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
-        type (STR): an identifier for how many different hashes to use. default is md5, sha1, sha256, and sha512. extended is all guaranteed hashes. full tries all available hashes.
+        type (STR): An identifier for how many different hashes to use. default is md5, sha1, sha256, and sha512. extended is all guaranteed hashes. full tries all available hashes.
 
     Returns:
         Hash_List (list): A list of hashes in a certain order to use in scanning
@@ -42,7 +43,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
         OF.write(
             "\nFingerprinting Results\n"
         )  # Create fingerprinting section in output file
-        if type == "default":
+        if type == "default" or type == "Low":
             with open(File_To_Scan, "rb") as f:  # Open the input file
                 # Calculate the hashes and write them to the output file
                 text = f.read()
@@ -59,7 +60,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
                 Hash_List.append([File_MD5, "md5"])
                 Hash_List.append([File_SHA1, "sha_1"])
                 Hash_List.append([File_SHA512, "sha_512"])
-        elif type == "extended":
+        elif type == "extended" or type == "Extended":
             with open(File_To_Scan, "rb") as IF:
                 fileText = IF.read()
                 try:
@@ -74,7 +75,7 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
                             Hash_List.append([hash, hashType])
                 except Exception as e:
                     OF.write(f"\tCould not hash using {hashType}, encountered {e}.\n")
-        elif type == "full":
+        elif type == "full" or type == "Full":
             with open(File_To_Scan, "rb") as IF:
                 fileText = IF.read()
                 try:
@@ -173,6 +174,7 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
+        addtnlKeywords (List): An optional list of additional keywords and regular expressions
     """
     with open(Output_File, "a+") as OF:  # Open the output file
         print("")
@@ -196,7 +198,10 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
             # Open the input file and read it into a variable
             text_lines = IF.readlines()
             for entry in Regex_Patterns:
-                if entry[0][0] == "#":
+                try:
+                    if entry[0][0] == "#":
+                        continue
+                except IndexError:
                     continue
                 found = False
                 pattern = entry[0].strip()
@@ -358,13 +363,16 @@ def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None):
 
 
 # Dissasembly
-def Dissasembly(File_To_Scan, Output_File, Output_Folder):
+def Dissasembly(File_To_Scan, Output_File, Output_Folder=None):
     """This function disassembles the input file, outputting all characters to a seperate file formatted as a .txt file.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
         Output_Folder (path STR): The folder all of the output files go in
+
+    Returns:
+        Dissasembly_File (path STR): Returns the dissasembly file so that the GUI can use it
     """
     print("")
     print("Beginning Dissasembly")  # Inform the user that assembly has begun
@@ -378,7 +386,7 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder):
     with open(Output_File, "a+") as OF:
         OF.write("\nDissasembly\n")  # Create a dissasembly section in the output file
         with open(Dissasembly_File, "a+") as DestFile:
-            with open(File_To_Scan, "rb") as InFile:
+            with open(File_To_Scan, "r") as InFile:
                 for char in InFile.read():
                     # Write each character from the input file to the dissasembly file
                     DestFile.write(str(char))
@@ -386,6 +394,7 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder):
             f"\tDissasembly written to {Dissasembly_File}.\n\tSee that file for an exact reproduction of the contents of {File_To_Scan}.\n"
         )
     print("Dissasembly finished")  # Inform the user that dissasembly has finished.
+    return Dissasembly_File
 
 
 # Interactive Mode
