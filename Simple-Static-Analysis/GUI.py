@@ -51,6 +51,7 @@ class App(Tk):
             fill="both",
             expand=True,
         )
+        self.protocol("WM_DELETE_WINDOW", self.button_quit())
 
         # Store info for access by later frames
         # General project info like date and title
@@ -82,6 +83,7 @@ class App(Tk):
         for F in (StartPage, ScanPage, KeyPage, YaraPage, ProgressPage, OutPage):
             frame = F(self.container, self)
             self.frames[F] = frame
+            frame.configure(relief="sunken")
             frame.grid(
                 row=0,
                 column=0,
