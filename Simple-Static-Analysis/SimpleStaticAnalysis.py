@@ -22,24 +22,26 @@ import yara_x  # Allow the use of YARA rules
 
 
 # Fingerprinting function
-def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
+def Full_Fingerprint(File_To_Scan, Output_File, type="default", ConsoleOutput=True):
     """This function generates hashes of the input file using the four most common hash types used in system foresnics.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
         type (STR): An identifier for how many different hashes to use. default is md5, sha1, sha256, and sha512. extended is all guaranteed hashes. full tries all available hashes.
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
 
     Returns:
         Hash_List (list): A list of hashes in a certain order to use in scanning
     """
     Hash_List = []
     with open(Output_File, "a+") as OF:  # Open Output file
-        print("")
-        print(
-            "Beginning Fingerprinting"
-        )  # Let the user know the fingerprinting has begun
-        print("")
+        if ConsoleOutput:
+            print("")
+            print(
+                "Beginning Fingerprinting"
+            )  # Let the user know the fingerprinting has begun
+            print("")
         OF.write(
             "\nFingerprinting Results\n"
         )  # Create fingerprinting section in output file
@@ -93,20 +95,22 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default"):
         else:
             pass
         OF.write("\n")
-        print(
-            "Finished Fingerprinting"
-        )  # Let the user know fingerprinting has finished.
+        if ConsoleOutput:
+            print(
+                "Finished Fingerprinting"
+            )  # Let the user know fingerprinting has finished.
     return Hash_List  # Return the list with hashes for use in scanning
 
 
 # Scanning function
-def Scanning(File_Hash_List, Output_File, scan_list="default"):
+def Scanning(File_Hash_List, Output_File, scan_list="default", ConsoleOutput=True):
     """This function scans the hashes from the provided hash list, taken from the fingerprinting function, and compares them to the csv file included with known malware hashes.
 
     Args:
         File_Hash_List (list): A list of hashes in a specific format
         Output_File (path STR): The destination output file
         scan_list (path STR): The list to scan against. If left as default, gets the most recent 48 hour data dump from MalwareBazaar
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
     """
     # Get the recent CSV from MalwareBazaar using the requests library
     if scan_list == "default":
@@ -132,9 +136,10 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
     with open(Output_File, "a+") as OF:  # Open the output file
         OF.write("Scanning Results\n")  # Create scan result section
         Results_List = []
-        print("")
-        print("Starting scan")  # Let the user know scanning has begun
-        print("")
+        if ConsoleOutput:
+            print("")
+            print("Starting scan")  # Let the user know scanning has begun
+            print("")
         with open(
             scan_list, newline=""
         ) as csvfile:  # Open the known malware csv for reading
@@ -164,24 +169,27 @@ def Scanning(File_Hash_List, Output_File, scan_list="default"):
                     OF.write(
                         f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n"
                     )
-        print("Finished scan")  # Let the user know that scanning is done.
+        if ConsoleOutput:
+            print("Finished scan")  # Let the user know that scanning is done.
 
 
 # String Searching
-def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
+def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[], ConsoleOutput=True):
     """This function searches the input file for strings that match regular expressions from the regex txt file provided by the program.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
         addtnlKeywords (List): An optional list of additional keywords and regular expressions
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
     """
     with open(Output_File, "a+") as OF:  # Open the output file
-        print("")
-        print(
-            "Searching for strings within the file"
-        )  # Inform the user that string searching has begun
-        print("")
+        if ConsoleOutput:
+            print("")
+            print(
+                "Searching for strings within the file"
+            )  # Inform the user that string searching has begun
+            print("")
         OF.write(
             "\nString Searching\n"
         )  # Create a string searching section in the output file
@@ -216,21 +224,24 @@ def String_Searching(File_To_Scan, Output_File, addtnlKeywords=[]):
                             OF.write(f"\tMatch: {match} in line:\n\t\t{line.strip()}\n")
                 if not found:
                     OF.write(f"\tNo matches found\n")
-    print(
-        "String Searching done"
-    )  # Inform the user that string searching has completed.
+    if ConsoleOutput:
+        print(
+            "String Searching done"
+        )  # Inform the user that string searching has completed.
 
 
 # Identify Packing and/or Obfuscation
 # Identify Encoding
-def Identify_Encoding(File_To_Scan, Output_File):
+def Identify_Encoding(File_To_Scan, Output_File, ConsoleOutput=True):
     """This function detects character encoding using two different methods.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
     """
-    print("Detecting Encoding")  # Inform the user the encoding detection has begun
+    if ConsoleOutput:
+        print("Detecting Encoding")  # Inform the user the encoding detection has begun
     with open(Output_File, "a+") as OF:
         OF.write("\tDetecting Character Encoding\n")
         with open(File_To_Scan, "rb") as f:
@@ -249,20 +260,25 @@ def Identify_Encoding(File_To_Scan, Output_File):
         OF.write("\t\tUsing mimetypes:\n")
         OF.write(f"\t\t\tDetected {encoding} encoding\n")
         OF.write(f"\t\t\tDetected filetype {filetype}\n")
-    print("Finished detecting encoding")  # Inform the user that this process is done
+    if ConsoleOutput:
+        print(
+            "Finished detecting encoding"
+        )  # Inform the user that this process is done
 
 
 # Identify Packing
-def Identify_Packing(File_To_Scan, Output_File):
+def Identify_Packing(File_To_Scan, Output_File, ConsoleOutput=True):
     """This function uses YARA rules to detect file cryptors and packers.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
     """
-    print(
-        "Detecting packing"
-    )  # Inform the user that the detection of file packing has begun
+    if ConsoleOutput:
+        print(
+            "Detecting packing"
+        )  # Inform the user that the detection of file packing has begun
     # Compile the YARA rules
     with open("crypto_signatures.txt", "r") as rulesFile:
         crypto_Rules = yara_x.compile(rulesFile.read())
@@ -292,9 +308,10 @@ def Identify_Packing(File_To_Scan, Output_File):
                         OF.write(f"\t\t\t{pattern.identifier}\n")
         else:
             OF.write("\t\t\tNo Packers found\n")
-    print(
-        "Finished detecting packing"
-    )  # Inform the user that this process has finished.
+    if ConsoleOutput:
+        print(
+            "Finished detecting packing"
+        )  # Inform the user that this process has finished.
 
 
 # A function to match with user input YARA rules.
@@ -333,19 +350,21 @@ def Misc_YARA_Rules(File_To_Scan, Output_File, Yara_File):
 
 
 # Identify Obfuscation
-def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None):
+def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None, ConsoleOutput=True):
     """This function calls Identify_Encoding and Identify_Packing.
 
     Args:
         File_To_Scan (path STR): The path to the input file
         Output_File (path STR): The path to the output file
         YARA_List (list of path STR): A list containing additional YARA rule files. None by default
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
     """
-    print("")
-    print(
-        "Detecting Obfuscation"
-    )  # Inform the user that obfuscation detection has begun
-    print("")
+    if ConsoleOutput:
+        print("")
+        print(
+            "Detecting Obfuscation"
+        )  # Inform the user that obfuscation detection has begun
+        print("")
     with open(Output_File, "a+") as OF:
         # Create a section in the output file for obfuscation detection
         OF.write("\nObfuscation Methods\n")
@@ -356,27 +375,30 @@ def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None):
     if YARA_List != None:
         for path in YARA_List:
             Misc_YARA_Rules(File_To_Scan, Output_File, path)
-    print("")
-    print(
-        "Finished detecting obfuscation"
-    )  # Inform the user that obfuscation detection has finished
+    if ConsoleOutput:
+        print("")
+        print(
+            "Finished detecting obfuscation"
+        )  # Inform the user that obfuscation detection has finished
 
 
 # Dissasembly
-def Dissasembly(File_To_Scan, Output_File, Output_Folder=None):
+def Dissasembly(File_To_Scan, Output_File, Output_Folder=None, ConsoleOutput=True):
     """This function disassembles the input file, outputting all characters to a seperate file formatted as a .txt file.
 
     Args:
         File_To_Scan (path STR): The input file to read from
         Output_File (path STR): The destination output file
         Output_Folder (path STR): The folder all of the output files go in
+        ConsoleOutput (boolean): Boolean to determine whether to output to the console
 
     Returns:
         Dissasembly_File (path STR): Returns the dissasembly file so that the GUI can use it
     """
-    print("")
-    print("Beginning Dissasembly")  # Inform the user that assembly has begun
-    print("")
+    if ConsoleOutput:
+        print("")
+        print("Beginning Dissasembly")  # Inform the user that assembly has begun
+        print("")
     head, fileName = os.path.split(File_To_Scan)
     trueFileName, ext = os.path.splitext(fileName)
     Dissasembly_File_Name = (
@@ -393,7 +415,8 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder=None):
         OF.write(
             f"\tDissasembly written to {Dissasembly_File}.\n\tSee that file for an exact reproduction of the contents of {File_To_Scan}.\n"
         )
-    print("Dissasembly finished")  # Inform the user that dissasembly has finished.
+    if ConsoleOutput:
+        print("Dissasembly finished")  # Inform the user that dissasembly has finished.
     return Dissasembly_File
 
 

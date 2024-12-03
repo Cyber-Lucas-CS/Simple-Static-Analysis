@@ -31,7 +31,7 @@ from tkinter import scrolledtext  # Allow for scrollable text boxes
 import SimpleStaticAnalysis as SSA
 
 # Version Number
-version = "0.2.0"
+version = "0.2.1"
 
 
 # App class for storing info and creating the root window
@@ -990,7 +990,7 @@ class ProgressPage(Frame):
 
         # Fingerprinting
         self.currentProcess.configure(text="Fingerprinting")
-        hashList = SSA.Full_Fingerprint(inFile, outFile, type)
+        hashList = SSA.Full_Fingerprint(inFile, outFile, type, ConsoleOutput=False)
 
         # Scanning
         self.currentProcess.configure(text="Scanning")
@@ -1017,25 +1017,25 @@ class ProgressPage(Frame):
                     # Allow for graceful handling of unexpected errors.
                     print("Something failed")
                     print(e)
-        SSA.Scanning(hashList, outFile, scanList)
+        SSA.Scanning(hashList, outFile, scanList, ConsoleOutput=False)
 
         # String Searching
         self.currentProcess.configure(text="String Searching")
-        SSA.String_Searching(inFile, outFile, searchList)
+        SSA.String_Searching(inFile, outFile, searchList, ConsoleOutput=False)
 
         # Identify Obfuscation
         self.currentProcess.configure(text="Identifying Obfuscation")
         # If the YARA list only contains the default 2, just run the function normally.
         # Otherwise, run it with a sublist containing all elements from the YARA list past the default 2.
         if len(yaraList) == 2:
-            SSA.Identify_Obfuscation(inFile, outFile)
+            SSA.Identify_Obfuscation(inFile, outFile, ConsoleOutput=False)
         elif len(yaraList) > 2:
-            SSA.Identify_Obfuscation(inFile, outFile, yaraList[2:])
+            SSA.Identify_Obfuscation(inFile, outFile, yaraList[2:], ConsoleOutput=False)
 
         # Dissasembly
         self.currentProcess.configure(text="Dissasembling")
         # Create the dissasembly file in the cache
-        dissFile = SSA.Dissasembly(inFile, outFile, outFolder)
+        dissFile = SSA.Dissasembly(inFile, outFile, outFolder, ConsoleOutput=False)
         self.controller.dissasembleFile.set(dissFile)
 
         # Done

@@ -3,7 +3,7 @@ Originally Created by Lucas C. Ramage
 Copyright (C) 2024 Lucas Ramage
 
 The Simple Static Analysis Tool is a Python tool to help digital forensic investigators analyze suspected malware without running it.
-This tool provides all of the most used static analysis methods in a simple command-line tool. 
+This tool provides all of the most used static analysis methods in a simple command-line tool. This tool also comes with a GUI packaged as a seperate Python file.
 
 ## Usage:
 This application is intended to be used from the command line. You will need Python installed on your system to run this application, as well as the required modules listed in requirements.txt. Depending on the version of Python you have installed, you may need to swap 'python' in the syntax for 'python3'.
@@ -50,3 +50,6 @@ This is to prevent any accidental execution of commands, though everything using
 
 ## Interactive_Mode:
 This function runs interactive mode. Interactive mode allows the user to have more control over how this application functions. It is also a more user-friendly version.
+
+## GUI Mode:
+This program comes with a seperate .py file that runs SImple Static Analysis in a GUI. When running as a GUI, the windows will prompt the user with instructions. This GUI only allows for the analysis of one file at a time, but it is much easier to use and understand.
