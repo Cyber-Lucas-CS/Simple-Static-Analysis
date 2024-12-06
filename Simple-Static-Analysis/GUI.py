@@ -31,7 +31,7 @@ from tkinter import scrolledtext  # Allow for scrollable text boxes
 import SimpleStaticAnalysis as SSA
 
 # Version Number
-version = "0.2.2"
+version = "0.3.0"
 
 
 # App class for storing info and creating the root window
@@ -73,7 +73,7 @@ class App(Tk):
         # Output information
         self.cacheFolder = StringVar()
         self.outFile = StringVar()
-        self.dissasembleFile = StringVar()
+        self.disassembleFile = StringVar()
         os.mkdir("GUI_Cache")
         self.cacheFolder.set("GUI_Cache")
         self.outFile.set(os.path.join(self.cacheFolder.get(), "Output.txt"))
@@ -1061,11 +1061,11 @@ class ProgressPage(Frame):
         elif len(yaraList) > 2:
             SSA.Identify_Obfuscation(inFile, outFile, yaraList[2:], ConsoleOutput=False)
 
-        # Dissasembly
-        self.currentProcess.configure(text="Dissasembling")
-        # Create the dissasembly file in the cache
-        dissFile = SSA.Dissasembly(inFile, outFile, outFolder, ConsoleOutput=False)
-        self.controller.dissasembleFile.set(dissFile)
+        # Disassembly
+        self.currentProcess.configure(text="Disassembling")
+        # Create the disassembly file in the cache
+        dissFile = SSA.Disassembly(inFile, outFile, outFolder, ConsoleOutput=False)
+        self.controller.disassembleFile.set(dissFile)
 
         # Done
         # Set the outfile with the current contents
@@ -1086,7 +1086,7 @@ class OutPage(Frame):
 
         # Obtain the output from the controller
         self.outFile = self.controller.outFile
-        self.dissFile = self.controller.dissasembleFile
+        self.dissFile = self.controller.disassembleFile
 
         # The page label/title
         pageTitle = Label(
@@ -1111,10 +1111,10 @@ class OutPage(Frame):
             sticky=EW,
         )
 
-        # The label for the dissasembly of the input file
+        # The label for the disassembly of the input file
         dissLabel = Label(
             self,
-            text="Dissasembled File",
+            text="Disassembled File",
         )
         dissLabel.grid(
             row=1,
@@ -1229,24 +1229,17 @@ class OutPage(Frame):
         """Allows the user to preview a selected output file.
 
         Args:
-            file (path StringVar): The StringVar that contains the path ot the file
+            file (path StringVar): The StringVar that contains the path to the file
         """
         # Create a new window on top of the current window
         previewWin = Toplevel(self)
 
-        # Get the width of the screen and the dimensions of the window
-        screen_width = self.controller.winfo_screenwidth()
-        window_width = previewWin.winfo_reqwidth()
-        window_height = previewWin.winfo_reqheight()
-
-        # Calculate a position so that the window is centered horizontally
-        position_left = (screen_width // 2) - (window_width // 2)
-
-        # Place the window in the correct position
-        previewWin.geometry(f"{window_width}x{window_height}+{position_left}+50")
-
         # Set the title of the new window
         previewWin.title("Preview")
+
+        # Set the weights of the rows
+        previewWin.rowconfigure(0, pad=10, weight=1)
+        previewWin.columnconfigure(0, pad=10, weight=1)
 
         # Set up a scrolled text widget with empty text
         previewText = scrolledtext.ScrolledText(
@@ -1337,19 +1330,6 @@ class OutPage(Frame):
         """This function informs the user that unsaved results will be lost. It creates a window with the warning text and two buttons. One button to cancel and go back to save the output, another to finish and quit."""
         # Create and format a window on top of the current window
         finishWarningWindow = Toplevel(self)
-
-        # Get the width of the screen and the dimensions of the window
-        screen_width = self.controller.winfo_screenwidth()
-        window_width = finishWarningWindow.winfo_reqwidth()
-        window_height = finishWarningWindow.winfo_reqheight()
-
-        # Calculate a position so that the window is centered horizontally
-        position_left = (screen_width // 2) - (window_width // 2)
-
-        # Place the window in the correct position
-        finishWarningWindow.geometry(
-            f"{window_width}x{window_height}+{position_left}+50"
-        )
 
         # Title the window
         finishWarningWindow.title("Warning")

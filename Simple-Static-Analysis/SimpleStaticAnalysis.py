@@ -17,7 +17,6 @@ import os  # Allow multi-system compatability with file paths
 import re  # Allow the use of regular expressions
 import requests  # Allow getting files from web pages
 import sys  # Allow command-line arguments and graceful exiting
-import tempfile  # Allow for temporary files that do not get saved
 import yara_x  # Allow the use of YARA rules
 
 
@@ -384,9 +383,9 @@ def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None, ConsoleOutpu
         )  # Inform the user that obfuscation detection has finished
 
 
-# Dissasembly
-def Dissasembly(File_To_Scan, Output_File, Output_Folder=None, ConsoleOutput=True):
-    """This function disassembles the input file, outputting all characters to a seperate file formatted as a .txt file.
+# Disassembly
+def Disassembly(File_To_Scan, Output_File, Output_Folder=None, ConsoleOutput=True):
+    """This function disassembles the input file, outputting all characters as ASCII to a separate file, with newlines at periods or newline characters.
 
     Args:
         File_To_Scan (path STR): The input file to read from
@@ -395,31 +394,41 @@ def Dissasembly(File_To_Scan, Output_File, Output_Folder=None, ConsoleOutput=Tru
         ConsoleOutput (boolean): Boolean to determine whether to output to the console
 
     Returns:
-        Dissasembly_File (path STR): Returns the dissasembly file so that the GUI can use it
+        Disassembly_File (path STR): Returns the disassembly file so that the GUI can use it
     """
     if ConsoleOutput:
         print("")
-        print("Beginning Dissasembly")  # Inform the user that assembly has begun
+        print("Beginning Disassembly")  # Inform the user that disassembly has begun
         print("")
     head, fileName = os.path.split(File_To_Scan)
     trueFileName, ext = os.path.splitext(fileName)
-    Dissasembly_File_Name = (
-        f"{trueFileName}_Dissasembled.txt"  # Make a unique dissasembly file
+    Disassembly_File_Name = (
+        f"{trueFileName}_Disassembled.txt"  # Make a unique disassembly file
     )
-    Dissasembly_File = os.path.join(Output_Folder, Dissasembly_File_Name)
+    Disassembly_File = os.path.join(Output_Folder, Disassembly_File_Name)
     with open(Output_File, "a+") as OF:
-        OF.write("\nDissasembly\n")  # Create a dissasembly section in the output file
-        with open(Dissasembly_File, "a+") as DestFile:
-            with open(File_To_Scan, "r") as InFile:
-                for char in InFile.read():
-                    # Write each character from the input file to the dissasembly file
-                    DestFile.write(str(char))
+        OF.write("\nDisassembly\n")  # Create a disassembly section in the output file
+        with open(File_To_Scan, "rb") as InFile:
+            data = InFile.read().decode(
+                "utf-8", errors="replace"
+            )  # Decode bytes to string
+        with open(Disassembly_File, "a+") as DestFile:
+            buffer = ""  # Buffer to collect ASCII characters until a newline is found
+            for char in data:
+                if char == "\r" or char == "\n":  # Check for newline
+                    buffer += char  # Include the character in the current line
+                    DestFile.write(buffer + "\n")  # Write the buffered line
+                    buffer = ""  # Reset buffer for the next line
+                else:
+                    buffer += char if 32 <= ord(char) < 127 else "."  # Add ASCII or '.'
+            if buffer:  # Write any remaining characters in the buffer
+                DestFile.write(buffer + "\n")
         OF.write(
-            f"\tDissasembly written to {Dissasembly_File}.\n\tSee that file for an exact reproduction of the contents of {File_To_Scan}.\n"
+            f"\tASCII disassembly written to {Disassembly_File}.\n\tSee that file for an exact ASCII representation of {File_To_Scan}.\n"
         )
     if ConsoleOutput:
-        print("Dissasembly finished")  # Inform the user that dissasembly has finished.
-    return Dissasembly_File
+        print("Disassembly finished")  # Inform the user that disassembly has finished.
+    return Disassembly_File
 
 
 # Interactive Mode
@@ -728,7 +737,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION."""
                 Identify_Obfuscation(inFile, outFile, rule_file)
         else:
             Identify_Obfuscation(inFile, outFile)
-        Dissasembly(inFile, outFile, outFolder_Name)
+        Disassembly(inFile, outFile, outFolder_Name)
     input("Press enter to end program")
     sys.exit()
 
@@ -800,7 +809,7 @@ def main():
         Scanning(Hash_List, outFile)
         String_Searching(inFile, outFile)
         Identify_Obfuscation(inFile, outFile)
-        Dissasembly(inFile, outFile, outFolder_Name)
+        Disassembly(inFile, outFile, outFolder_Name)
 
 
 if __name__ == "__main__":
