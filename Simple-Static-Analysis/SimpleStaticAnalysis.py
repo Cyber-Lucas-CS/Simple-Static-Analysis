@@ -369,9 +369,11 @@ def Identify_Obfuscation(File_To_Scan, Output_File, YARA_List=None, ConsoleOutpu
         # Create a section in the output file for obfuscation detection
         OF.write("\nObfuscation Methods\n")
     Identify_Encoding(
-        File_To_Scan, Output_File
+        File_To_Scan, Output_File, ConsoleOutput
     )  # Call the function to identify encoding
-    Identify_Packing(File_To_Scan, Output_File)  # Call the function to identify packing
+    Identify_Packing(
+        File_To_Scan, Output_File, ConsoleOutput
+    )  # Call the function to identify packing
     if YARA_List != None:
         for path in YARA_List:
             Misc_YARA_Rules(File_To_Scan, Output_File, path)

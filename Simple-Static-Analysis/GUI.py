@@ -31,7 +31,7 @@ from tkinter import scrolledtext  # Allow for scrollable text boxes
 import SimpleStaticAnalysis as SSA
 
 # Version Number
-version = "0.2.1"
+version = "0.2.2"
 
 
 # App class for storing info and creating the root window
@@ -43,6 +43,7 @@ class App(Tk):
         self.minsize(600, 375)
         self.maxsize(1600, 1000)
         self.configure(background="#323232")
+        self.center_window()
 
         # Make a container for the other frames
         self.container = Frame(self)
@@ -51,7 +52,6 @@ class App(Tk):
             fill="both",
             expand=True,
         )
-        self.protocol("WM_DELETE_WINDOW", self.button_quit())
 
         # Store info for access by later frames
         # General project info like date and title
@@ -78,6 +78,9 @@ class App(Tk):
         self.cacheFolder.set("GUI_Cache")
         self.outFile.set(os.path.join(self.cacheFolder.get(), "Output.txt"))
 
+        # Allow for clean-up when the window is closed.
+        self.protocol("WM_DELETE_WINDOW", self.button_quit)
+
         # Create all of the subframes
         self.frames = {}
         for F in (StartPage, ScanPage, KeyPage, YaraPage, ProgressPage, OutPage):
@@ -89,6 +92,10 @@ class App(Tk):
                 column=0,
                 sticky=NSEW,
             )
+
+        # Ensure the container resizes with the frame
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
 
         # Show the first frame
         self.show_frame(StartPage)
@@ -107,6 +114,10 @@ class App(Tk):
         for i in range(frame.grid_size()[1]):
             frame.columnconfigure(i, pad=10, weight=1)
 
+        # Resize the window to fit the current frame's content
+        self.update_idletasks()  # Update window geometry after raising the frame
+        self.center_window()
+
     # A function to quit the program cleanly
     def button_quit(self):
         """A function to quit the program with cache cleanup"""
@@ -118,6 +129,24 @@ class App(Tk):
         os.rmdir(self.cacheFolder.get())
         # Quit the program
         self.quit()
+
+    # A function to center the window on the screen
+    def center_window(self):
+        """A function to center the window on the screen regardless of screen size."""
+        # Get the screen width and height
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # Get the window dimensions
+        window_width = self.winfo_reqwidth()
+        window_height = self.winfo_reqheight()
+
+        # Calculate the position to center the window
+        position_top = int((screen_height // 2) - (window_height // 1.5))
+        position_left = (screen_width // 2) - (window_width // 2)
+
+        # Set the window position using the geometry method
+        self.geometry(f"{window_width}x{window_height}+{position_left}+{position_top}")
 
 
 # The Start Page
@@ -1204,6 +1233,18 @@ class OutPage(Frame):
         """
         # Create a new window on top of the current window
         previewWin = Toplevel(self)
+
+        # Get the width of the screen and the dimensions of the window
+        screen_width = self.controller.winfo_screenwidth()
+        window_width = previewWin.winfo_reqwidth()
+        window_height = previewWin.winfo_reqheight()
+
+        # Calculate a position so that the window is centered horizontally
+        position_left = (screen_width // 2) - (window_width // 2)
+
+        # Place the window in the correct position
+        previewWin.geometry(f"{window_width}x{window_height}+{position_left}+50")
+
         # Set the title of the new window
         previewWin.title("Preview")
 
@@ -1296,7 +1337,23 @@ class OutPage(Frame):
         """This function informs the user that unsaved results will be lost. It creates a window with the warning text and two buttons. One button to cancel and go back to save the output, another to finish and quit."""
         # Create and format a window on top of the current window
         finishWarningWindow = Toplevel(self)
+
+        # Get the width of the screen and the dimensions of the window
+        screen_width = self.controller.winfo_screenwidth()
+        window_width = finishWarningWindow.winfo_reqwidth()
+        window_height = finishWarningWindow.winfo_reqheight()
+
+        # Calculate a position so that the window is centered horizontally
+        position_left = (screen_width // 2) - (window_width // 2)
+
+        # Place the window in the correct position
+        finishWarningWindow.geometry(
+            f"{window_width}x{window_height}+{position_left}+50"
+        )
+
+        # Title the window
         finishWarningWindow.title("Warning")
+
         # Place the warning text
         warningText = Label(
             finishWarningWindow,
