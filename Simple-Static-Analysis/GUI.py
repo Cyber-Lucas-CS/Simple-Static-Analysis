@@ -8,15 +8,9 @@ You should have received a copy of the GNU General Public License along with thi
 """
 
 # Imports
-import chardet  # Detecting character encoding
-import csv  # Gracefully reading CSV files
 import datetime  # Allow for timestamps
-import hashlib  # Allow for hashing text and files
-import mimetypes  # Detect file encoding and mime types
 import os  # Allow multi-system compatability with file paths
-import re  # Allow the use of regular expressions
 import requests  # Allow getting files from web pages
-import sys  # Allow command-line arguments and graceful exiting
 import tempfile  # Allow for temporary files that do not get saved each run
 import yara_x  # Allow the use of YARA rules
 

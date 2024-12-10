@@ -22,7 +22,7 @@ import yara_x  # Allow the use of YARA rules
 
 # Fingerprinting function
 def Full_Fingerprint(File_To_Scan, Output_File, type="default", ConsoleOutput=True):
-    """This function generates hashes of the input file using the four most common hash types used in system foresnics.
+    """This function generates hashes of the input file using the four most common hash types used in system forensics.
 
     Args:
         File_To_Scan (path STR): The input file to read from
@@ -103,73 +103,71 @@ def Full_Fingerprint(File_To_Scan, Output_File, type="default", ConsoleOutput=Tr
 
 # Scanning function
 def Scanning(File_Hash_List, Output_File, scan_list="default", ConsoleOutput=True):
-    """This function scans the hashes from the provided hash list, taken from the fingerprinting function, and compares them to the csv file included with known malware hashes.
+    """Scans hashes from the provided list against known malware hashes.
 
     Args:
-        File_Hash_List (list): A list of hashes in a specific format
-        Output_File (path STR): The destination output file
-        scan_list (path STR): The list to scan against. If left as default, gets the most recent 48 hour data dump from MalwareBazaar
-        ConsoleOutput (boolean): Boolean to determine whether to output to the console
+        File_Hash_List (list): A list of hashes with their types, e.g., [[hash, type], ...].
+        Output_File (str): Path to the output file.
+        scan_list (str): Path to the malware hash list CSV. Defaults to recent MalwareBazaar data dump.
+        ConsoleOutput (bool): Whether to print progress to the console.
+
+    Returns:
+        list: Results of matched hashes with row numbers.
     """
-    # Get the recent CSV from MalwareBazaar using the requests library
     if scan_list == "default":
         url = "https://bazaar.abuse.ch/export/csv/recent/"
         response = requests.get(url)
-        file_Path = "recent.csv"
+        file_path = "recent.csv"
         if response.status_code == 200:
             try:
-                # Store the file from MalwareBazaar locally, overwriting the previous CSV
-                with open(file_Path, "wb") as scanFile:
-                    scanFile.write(
-                        b'"first_seen_utc","sha256_hash","md5_hash","sha1_hash","reporter","file_name","file_type_guess","mime_type","signature","clamav","vtpercent","imphash","ssdeep","tlsh"\n'
-                    )
+                with open(file_path, "wb") as scanFile:
                     scanFile.write(response.content)
-                scan_list = file_Path
+                scan_list = file_path
             except Exception as e:
-                # Allow for graceful handling of unexpected errors.
-                print("Something failed")
-                print(e)
+                print("Error saving MalwareBazaar data:", e)
         else:
-            # If the program cannot get the file from MalwareBazaar, it will use whatever one it already has.
-            print("Failed getting recent malware csv from MalwareBazaar.")
-    with open(Output_File, "a+") as OF:  # Open the output file
-        OF.write("Scanning Results\n")  # Create scan result section
-        Results_List = []
+            print(
+                "Failed to download recent malware data. Using local file if available."
+            )
+
+    Results_List = []
+    with open(Output_File, "a+") as OF:
+        OF.write("Scanning Results\n")
         if ConsoleOutput:
-            print("")
-            print("Starting scan")  # Let the user know scanning has begun
-            print("")
-        with open(
-            scan_list, newline=""
-        ) as csvfile:  # Open the known malware csv for reading
-            Hash_Data_Reader = csv.reader(csvfile, delimiter=",")
-            rowNum = 0
-            for row in Hash_Data_Reader:  # Read through each row in the hash list CSV
-                rowNum += 1
-                try:
-                    # Read through column of the rows, moving on if there is an index error
+            print("\nStarting scan\n")
+
+        try:
+            with open(scan_list, newline="") as csvfile:
+                Hash_Data_Reader = csv.reader(csvfile, delimiter=",")
+                File_Hash_Set = {hash[0] for hash in File_Hash_List}  # Optimized lookup
+                for rowNum, row in enumerate(Hash_Data_Reader, start=1):
                     for entry in row:
-                        # Go through each hash provided in the file hash list from the input file. If there is a match, write it to the output file
-                        for hash in File_Hash_List:
-                            try:
-                                if hash[0] in entry:
-                                    Results_List.append([hash[0], hash[1], rowNum])
-                            except:
-                                continue
-                except IndexError:  # If the row only has one entry, go to the next row
-                    next(Hash_Data_Reader, None)
-            if (
-                len(Results_List) == 0
-            ):  # If no matches are found, write that to the output file
+                        if entry in File_Hash_Set:
+                            hash_type = next(
+                                (h[1] for h in File_Hash_List if h[0] == entry), None
+                            )
+                            Results_List.append([entry, hash_type, rowNum])
+
+            if not Results_List:
                 OF.write("\tNo matches\n")
-            else:  # If matches are found, write them to the output file
+            else:
                 OF.write("\tMatches Found:\n")
                 for entry in Results_List:
                     OF.write(
                         f"\t\t{entry[1]} hash {entry[0]} on row number {entry[2]} in {scan_list}\n"
                     )
+
+        except FileNotFoundError:
+            print(f"Error: {scan_list} not found.")
+            OF.write("\tError: Malware data file not found.\n")
+        except Exception as e:
+            print("An unexpected error occurred during scanning:", e)
+            OF.write(f"\tError during scanning: {e}\n")
+
         if ConsoleOutput:
-            print("Finished scan")  # Let the user know that scanning is done.
+            print("Finished scan")
+
+    return Results_List
 
 
 # String Searching
@@ -817,5 +815,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("Exicing through Keyboard Interrupt")
+        print("Exiting through Keyboard Interrupt")
         sys.exit()
